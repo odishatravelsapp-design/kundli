@@ -4,7 +4,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 
 from fastapi.responses import Response
 
@@ -21,8 +21,23 @@ from .core.panchanga import compute_panchanga
 from .schemas import (BirthDetails, ChatRequest, DayMuhurtaRequest,
                       MatchRequest, MuhurtaRequest, PalmGuidedRequest,
                       PalmImageRequest, ProfileIn, VarshaphalRequest)
+from .services import auth as auth_svc
 from .services import geo, interpret, palm, retrieval, store, timeline
 from .services import llm as llm_svc
+
+
+def _user(request: Request) -> str:
+    return getattr(request.state, "user", None) or "local"
+
+
+def _check_ai_quota(request: Request):
+    """Per-user daily cap on AI calls — only enforced when auth is on."""
+    if not auth_svc.enabled():
+        return
+    from .config import get_settings
+    if not store.ai_quota_ok(_user(request), get_settings().ai_daily_limit):
+        raise HTTPException(429, "Daily AI limit reached — try again "
+                                 "tomorrow.")
 from .services.llm import provider_status
 
 router = APIRouter(prefix="/api")
@@ -184,7 +199,8 @@ def kundli_pdf(b: BirthDetails):
 
 
 @router.post("/kundli/ai")
-async def kundli_ai(b: BirthDetails):
+async def kundli_ai(b: BirthDetails, request: Request):
+    _check_ai_quota(request)
     data = _full_kundli(b)
     narrative = await interpret.ai_narrative(
         data["chart"], data["dasha"], data["yogas"], data["mangal_dosha"],
@@ -346,30 +362,40 @@ def varshaphal(req: VarshaphalRequest):
         raise HTTPException(400, str(e))
 
 
-# ---- saved profiles ----
+# ---- saved profiles (per signed-in user) ----
 @router.get("/profiles")
-def profiles():
-    return store.list_profiles()
+def profiles(request: Request):
+    return store.list_profiles(_user(request))
 
 
 @router.post("/profiles")
-def save_profile(p: ProfileIn):
+def save_profile(p: ProfileIn, request: Request):
     if not p.name.strip():
         raise HTTPException(400, "Profile needs a name.")
-    return store.save_profile(p.name.strip(), p.gender, p.date, p.time,
-                              p.place)
+    return store.save_profile(_user(request), p.name.strip(), p.gender,
+                              p.date, p.time, p.place)
 
 
 @router.delete("/profiles/{pid}")
-def delete_profile(pid: int):
-    if not store.delete_profile(pid):
+def delete_profile(pid: int, request: Request):
+    if not store.delete_profile(_user(request), pid):
         raise HTTPException(404, "Profile not found.")
     return {"deleted": pid}
 
 
+@router.post("/feedback")
+def feedback(request: Request, body: dict):
+    msg = (body.get("message") or "").strip()
+    if not msg:
+        raise HTTPException(400, "Empty feedback.")
+    store.save_feedback(_user(request), msg)
+    return {"ok": True}
+
+
 # ---- chat astrologer ----
 @router.post("/chat")
-async def chat(req: ChatRequest):
+async def chat(req: ChatRequest, request: Request):
+    _check_ai_quota(request)
     data = _full_kundli(req.birth)
     c = data["chart"]
     facts = (
@@ -421,7 +447,8 @@ def palm_guided(req: PalmGuidedRequest):
 
 
 @router.post("/palm/image")
-async def palm_image(req: PalmImageRequest):
+async def palm_image(req: PalmImageRequest, request: Request):
+    _check_ai_quota(request)
     b64 = req.image_base64
     if "," in b64[:64]:  # strip data: URI prefix if present
         b64 = b64.split(",", 1)[1]

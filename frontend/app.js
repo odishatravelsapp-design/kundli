@@ -865,6 +865,32 @@ const dm = $('#daymuhurta-form input[name="date"]'); if (dm) dm.value = today;
 const fy = $('#festivals-form input[name="year"]'); if (fy) fy.value = new Date().getFullYear();
 const vy = $("#vf-year"); if (vy) vy.value = new Date().getFullYear();
 
+/* ---------- auth badge + feedback ---------- */
+fetch("/auth/me").then(r => r.json()).then(me => {
+  if (!me.auth_enabled || !me.email) return;
+  const langBox = $(".lang-toggle");
+  const badge = document.createElement("span");
+  badge.style.cssText = "color:#f5e3c0;font-size:.75rem;margin-right:.6rem";
+  badge.innerHTML = `${me.email} · <a href="/auth/logout" style="color:#e8930c">logout</a>`;
+  langBox.parentNode.insertBefore(badge, langBox);
+}).catch(() => {});
+
+const fb = document.createElement("p");
+fb.innerHTML = `<a href="#" id="fb-link" style="color:#7a1f1f">💬 Send feedback</a>`;
+document.querySelector("footer").appendChild(fb);
+document.addEventListener("click", async e => {
+  if (e.target.id !== "fb-link") return;
+  e.preventDefault();
+  const msg = prompt("Tell us what to improve, what confused you, or what you liked:");
+  if (!msg || !msg.trim()) return;
+  try {
+    await fetch("/api/feedback", {method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({message: msg})});
+    alert("Thank you! 🙏");
+  } catch { alert("Could not send — try later."); }
+});
+
 /* ---------- PWA ---------- */
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
 /* preload labels for language toggle */

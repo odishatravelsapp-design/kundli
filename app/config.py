@@ -26,6 +26,12 @@ class Settings(BaseSettings):
 
     default_tz_offset: float = 5.5  # IST
 
+    # ---- Google auth (activates only when google_client_id is set) ----
+    google_client_id: str = ""
+    session_secret: str = "change-me-in-production"
+    allowed_emails: str = ""        # comma-separated allowlist
+    ai_daily_limit: int = 20        # per-user AI calls per day (when auth on)
+
     class Config:
         env_file = ".env"
         extra = "ignore"

@@ -1,3 +1,13 @@
+---
+title: Jyotisha Odisha
+emoji: ☸️
+colorFrom: red
+colorTo: yellow
+sdk: docker
+app_port: 8000
+pinned: false
+---
+
 # Jyotisha Odisha — Free Kundli · Panchanga · Match · Palm PWA
 
 A **zero-cost, fully offline** Vedic astrology application built for India with

@@ -9,6 +9,9 @@
       "PowerShell(gh auth status 2>&1)",
       "PowerShell(gh repo view odishatravelsapp-design/kundli --json name,visibility 2>&1)",
       "PowerShell(Set-Location \"c:\\\\Users\\\\sahud\\\\OneDrive\\\\Desktop\\\\Dillip\\\\POC\\\\kundli\"; git status --short; git log --oneline -1; \"clean: $\\(\\(git status --porcelain\\).Count -eq 0\\)\")"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\sahud\\OneDrive\\Desktop\\Dillip\\POC\\WealthScript\\WealthScript"
     ]
   }
 }
