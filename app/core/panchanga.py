@@ -9,7 +9,8 @@ from __future__ import annotations
 from datetime import datetime
 
 from .astro import (CALC_FLAGS, NAK_SPAN, SIGNS, compute_positions,
-                    julian_day_utc, nakshatra_of)
+                    jd_to_local, julian_day_utc, nakshatra_of, next_crossing,
+                    rise_set)
 
 TITHI_NAMES = [
     "Pratipada", "Dwitiya", "Tritiya", "Chaturthi", "Panchami", "Shashthi",
@@ -59,7 +60,19 @@ def karana_name(k: int) -> str:
     return KARANA_MOVABLE[(k - 1) % 7]
 
 
-def compute_panchanga(dt_local: datetime, tz_offset: float) -> dict:
+def _elongation(jd: float) -> float:
+    p = compute_positions(jd)
+    return (p["Moon"]["longitude"] - p["Sun"]["longitude"]) % 360.0
+
+
+def _moon_lon(jd: float) -> float:
+    return compute_positions(jd)["Moon"]["longitude"]
+
+
+def compute_panchanga(dt_local: datetime, tz_offset: float,
+                      lat: float | None = None,
+                      lon: float | None = None,
+                      with_endings: bool = True) -> dict:
     jd = julian_day_utc(dt_local, tz_offset)
     pos = compute_positions(jd)
     sun = pos["Sun"]["longitude"]
@@ -80,12 +93,36 @@ def compute_panchanga(dt_local: datetime, tz_offset: float) -> dict:
     karana_idx = int(elong // 6)          # 0..59
     weekday = int(jd + 1.5) % 7           # 0 = Sunday
 
+    # Hindu day runs sunrise-to-sunrise: before sunrise, the vaara is
+    # still the previous civil day's.
+    sunrise_str = None
+    if lat is not None and lon is not None:
+        sunrise, _ = rise_set(dt_local, tz_offset, lat, lon)
+        sunrise_str = sunrise.strftime("%H:%M")
+        if dt_local < sunrise:
+            weekday = (weekday - 1) % 7
+
     sun_sign = int(sun // 30)
     masa_idx = sun_sign  # Mesha -> Baisakha
 
+    tithi_obj = {"index": tithi_idx + 1, "name": tithi, "paksha": paksha}
+    nak_obj = nakshatra_of(moon)
+    if with_endings:
+        jd_t = next_crossing(_elongation, ((tithi_idx + 1) * 12) % 360.0, jd)
+        jd_n = next_crossing(_moon_lon,
+                             (((int(moon // NAK_SPAN) + 1) % 27) * NAK_SPAN)
+                             % 360.0, jd)
+        if jd_t:
+            tithi_obj["ends"] = jd_to_local(jd_t, tz_offset).strftime(
+                "%Y-%m-%d %H:%M")
+        if jd_n:
+            nak_obj["ends"] = jd_to_local(jd_n, tz_offset).strftime(
+                "%Y-%m-%d %H:%M")
+
     return {
-        "tithi": {"index": tithi_idx + 1, "name": tithi, "paksha": paksha},
-        "nakshatra": nakshatra_of(moon),
+        "tithi": tithi_obj,
+        "nakshatra": nak_obj,
+        "sunrise": sunrise_str,
         "yoga": {"index": yoga_idx + 1, "name": YOGA_NAMES[yoga_idx]},
         "karana": {"index": karana_idx + 1, "name": karana_name(karana_idx)},
         "vaara": {"index": weekday, "name": VAARA[weekday],

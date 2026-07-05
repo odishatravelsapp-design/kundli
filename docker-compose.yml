@@ -7,6 +7,10 @@ services:
     env_file:
       - path: .env
         required: false
+    environment:
+      - DATA_DIR=/srv/userdata
+    volumes:
+      - ./userdata:/srv/userdata   # saved profiles persist across rebuilds
     restart: unless-stopped
 
   # OPTIONAL free local LLM (uncomment to enable AI narratives with zero cost;

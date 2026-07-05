@@ -36,6 +36,26 @@ class DayMuhurtaRequest(BaseModel):
     birth: BirthDetails | None = None   # optional personalisation
 
 
+class VarshaphalRequest(BaseModel):
+    birth: BirthDetails
+    year: int
+
+
+class ChatRequest(BaseModel):
+    birth: BirthDetails
+    question: str
+    history: list[dict] = []      # [{role: "user"|"assistant", text: str}]
+    language: str = "en"
+
+
+class ProfileIn(BaseModel):
+    name: str
+    gender: str = "any"
+    date: str
+    time: str = "06:00"
+    place: str
+
+
 class PalmGuidedRequest(BaseModel):
     answers: dict[str, str]
 

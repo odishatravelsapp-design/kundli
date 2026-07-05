@@ -15,6 +15,19 @@ const PL_ABBR = {Sun:"Su",Moon:"Mo",Mars:"Ma",Mercury:"Me",Jupiter:"Ju",
 const PL_ABBR_OR = {Sun:"ର",Moon:"ଚ",Mars:"ମ",Mercury:"ବୁ",Jupiter:"ବୃ",
   Venus:"ଶୁ",Saturn:"ଶ",Rahu:"ରା",Ketu:"କେ"};
 
+const HOUSE_THEMES = {1:"self, body, personality and life direction",
+  2:"wealth, family, food and speech",3:"courage, siblings, communication",
+  4:"home, mother, land, vehicles, inner peace",5:"children, intellect, creativity",
+  6:"health, service, debts, competition",7:"marriage, partnership, public dealings",
+  8:"longevity, transformation, occult, inheritance",9:"fortune, dharma, father, guru",
+  10:"career, status, karma, achievement",11:"gains, income, social circle",
+  12:"expenditure, foreign lands, sleep, moksha"};
+const PLANET_NATURE = {Sun:"soul, authority, father, vitality",
+  Moon:"mind, emotions, mother",Mars:"energy, courage, land, technical skill",
+  Mercury:"intellect, speech, commerce",Jupiter:"wisdom, wealth, children, dharma",
+  Venus:"love, comfort, arts, spouse",Saturn:"discipline, longevity, labour",
+  Rahu:"obsession, foreign influence, sudden rise",Ketu:"detachment, spirituality, research"};
+
 const signName = s => (LANG === "or" && LABELS) ? LABELS.signs[s] || s : s;
 const plName = p => (LANG === "or" && LABELS) ? LABELS.planets[p] || p : p;
 const nakName = n => (LANG === "or" && LABELS) ? LABELS.nakshatras[n] || n : n;
@@ -79,6 +92,11 @@ function chartSVG(chart, style) {
   if (style === "north") return northChart(ascSign, byHouse);
   return eastChart(ascSign, byHouse);
 }
+function clickTarget(x, y, house) {
+  return `<circle cx="${x}" cy="${y}" r="30" fill="transparent"
+    style="cursor:pointer" data-house="${house}"><title>House ${house} — tap for meaning</title></circle>`;
+}
+
 function textLines(x, y, items, cls) {
   const rows = [];
   for (let i = 0; i < items.length; i += 3) rows.push(items.slice(i, i + 3).join(" "));
@@ -97,6 +115,7 @@ function northChart(ascSign, byHouse) {
     s += `<text class="hnum" x="${x}" y="${y - 18}" text-anchor="middle">${sign + 1}</text>`;
     if (h === 1) s += `<text class="asc" x="${x}" y="${y - 32}" text-anchor="middle">Lagna</text>`;
     s += textLines(x, y, byHouse[h] || [], "pl");
+    s += clickTarget(x, y, h);
   });
   return s + "</svg>";
 }
@@ -121,6 +140,7 @@ function southChart(ascSign, byHouse) {
     if (sign === ascSign)
       s += `<path class="ln" d="M${c*cell+4},${r*cell+22} L${c*cell+30},${r*cell+4}"/>`;
     s += textLines(x, y + 22, byHouse[house] || [], "pl");
+    s += clickTarget(x, y + 20, house);
   }
   return s + "</svg>";
 }
@@ -153,6 +173,7 @@ function eastChart(ascSign, byHouse) {
     const sign = (ascSign + r.h - 1) % 12;
     s += `<text class="hnum" x="${r.t[0]}" y="${r.t[1] - 12}" text-anchor="middle">${sign + 1}</text>`;
     s += textLines(r.t[0], r.t[1] + 4, byHouse[r.h] || [], "pl");
+    s += clickTarget(r.t[0], r.t[1], r.h);
   });
   return s + "</svg>";
 }
@@ -177,8 +198,10 @@ $("#kundli-form").onsubmit = async e => {
 
 function panchaCard(p) {
   const cells = [
-    ["Tithi", `${p.tithi.paksha} ${p.tithi.name}`, ""],
-    ["Nakshatra", nakName(p.nakshatra.name), `pada ${p.nakshatra.pada}`],
+    ["Tithi", `${p.tithi.paksha} ${p.tithi.name}`,
+     p.tithi.ends ? `till ${p.tithi.ends.slice(11)} (${p.tithi.ends.slice(5, 10)})` : ""],
+    ["Nakshatra", nakName(p.nakshatra.name),
+     (p.nakshatra.ends ? `till ${p.nakshatra.ends.slice(11)} · ` : "") + `pada ${p.nakshatra.pada}`],
     ["Yoga", p.yoga.name, ""],
     ["Karana", p.karana.name, ""],
     ["Vaara", p.vaara.name, LABELS ? LABELS.vaara[p.vaara.name] : p.vaara.odia],
@@ -205,13 +228,21 @@ function navamsaOf(chart) {
 function renderKundli(d) {
   const c = d.chart, out = $("#kundli-result");
   const planetsRows = c.planets.map(p => `<tr>
-    <td>${plName(p.name)}${p.retrograde ? " (R)" : ""}</td>
+    <td>${plName(p.name)}${p.retrograde ? " (R)" : ""}${p.vargottama ? " ✦" : ""}</td>
     <td>${signName(p.sign_name)}</td>
     <td>${p.degree_in_sign.toFixed(2)}°</td>
     <td>${p.house}</td>
     <td>${nakName(p.nakshatra.name)} (${p.nakshatra.pada})</td>
     <td>${p.dignity}</td>
-    <td>${signName(p.navamsa_sign_name)}</td></tr>`).join("");
+    <td>${signName(p.navamsa_sign_name)}</td>
+    <td>${p.strength ? `<b>${p.strength.percent}%</b> ${p.strength.label}` : "—"}</td></tr>`).join("");
+
+  const divRows = c.planets.map(p => `<tr>
+    <td>${plName(p.name)}</td><td>${signName(p.sign_name)}</td>
+    <td>${signName(p.d2_sign_name || "")}</td>
+    <td>${signName(p.d7_sign_name || "")}</td>
+    <td>${signName(p.navamsa_sign_name)}</td>
+    <td>${signName(p.d10_sign_name || "")}</td></tr>`).join("");
 
   const md = d.dasha.mahadashas.filter(m => m.years > 0.01).slice(0, 12);
   const dashaRows = md.map(m => `<tr class="${m.current ? "current" : ""}">
@@ -274,6 +305,8 @@ function renderKundli(d) {
         <span class="badge">Birth TZ: UTC${d.input.tz_offset >= 0 ? "+" : ""}${d.input.tz_offset}</span>
       </p>
       ${nakInfo}
+      <div id="house-info" class="hint" style="border:1px dashed var(--line);border-radius:6px;padding:.5rem;margin-top:.5rem">
+        👆 Tap any house in the chart to see its meaning.</div>
     </div>
     <h2 class="sec">Avakahada Chakra — Traditional Details</h2>
     <div class="card"><div class="pancha-grid">${avCells}</div></div>
@@ -320,10 +353,15 @@ function renderKundli(d) {
     </div>` : ""}
     <h2 class="sec">Panchanga at Birth</h2>
     <div class="card">${panchaCard(d.panchanga)}</div>
-    <h2 class="sec">Graha Positions</h2>
+    <h2 class="sec">Graha Positions &amp; Strength</h2>
     <div class="card" style="overflow-x:auto"><table>
-      <tr><th>Graha</th><th>Rashi</th><th>Degree</th><th>House</th><th>Nakshatra</th><th>Dignity</th><th>Navamsa</th></tr>
-      ${planetsRows}</table></div>
+      <tr><th>Graha</th><th>Rashi</th><th>Degree</th><th>House</th><th>Nakshatra</th><th>Dignity</th><th>Navamsa</th><th>Strength</th></tr>
+      ${planetsRows}</table>
+      <p class="hint">✦ = vargottama (same sign in D1 &amp; D9 — extra firm results). Strength is a simplified shadbala score.</p>
+      <details><summary><b>Divisional charts (D2 wealth · D7 children · D9 marriage · D10 career)</b></summary>
+        <table><tr><th>Graha</th><th>D1</th><th>D2</th><th>D7</th><th>D9</th><th>D10</th></tr>${divRows}</table>
+      </details>
+    </div>
     <h2 class="sec">Houses (Bhavas) &amp; Lords</h2>
     <div class="card" style="overflow-x:auto"><table>
       <tr><th>House</th><th>Sign</th><th>Lord</th><th>Lord sits in</th><th>Occupants</th></tr>
@@ -366,6 +404,82 @@ function renderKundli(d) {
     <div id="ai-out"></div>`;
   out.scrollIntoView({behavior: "smooth"});
 }
+
+/* chart house click-through */
+document.addEventListener("click", e => {
+  const t = e.target.closest("circle[data-house]");
+  if (!t || !LAST_KUNDLI) return;
+  const h = +t.dataset.house;
+  const info = $("#house-info");
+  if (!info) return;
+  const hd = (LAST_KUNDLI.houses || []).find(x => x.house === h) || {};
+  const occ = (hd.occupants || []).map(p =>
+    `<b>${plName(p)}</b> (${PLANET_NATURE[p]})`).join("; ");
+  info.innerHTML = `<b>House ${h} — ${signName(hd.sign_name || "")}</b>: ${HOUSE_THEMES[h]}.<br>
+    Lord: <b>${plName(hd.lord || "")}</b> sitting in house ${hd.lord_in_house}.
+    ${occ ? "<br>Occupants: " + occ : "<br>No planets here — results flow from the lord's placement."}`;
+});
+
+/* ---------- saved profiles ---------- */
+async function loadProfiles() {
+  try {
+    const list = await fetch("/api/profiles").then(r => r.json());
+    const opts = `<option value="">— pick a saved profile —</option>` +
+      list.map(p => `<option value='${JSON.stringify(p).replace(/'/g, "&#39;")}'>${p.name} (${p.date})</option>`).join("");
+    const pick = $("#profile-picker");
+    if (pick) pick.innerHTML = opts;
+  } catch (e) { /* offline */ }
+}
+loadProfiles();
+
+const pick = $("#profile-picker");
+if (pick) pick.onchange = () => {
+  if (!pick.value) return;
+  const p = JSON.parse(pick.value);
+  const f = $("#kundli-form");
+  f.name.value = p.name; f.gender.value = p.gender || "any";
+  f.date.value = p.date; f.time.value = p.time; f.place.value = p.place;
+};
+
+$("#btn-save-profile").onclick = async () => {
+  const f = new FormData($("#kundli-form"));
+  if (!f.get("name") || !f.get("date") || !f.get("place"))
+    return alert("Fill name, date and place first.");
+  await api("/api/profiles", {
+    method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({name: f.get("name"), gender: f.get("gender"),
+      date: f.get("date"), time: f.get("time"), place: f.get("place")}),
+  });
+  await loadProfiles();
+  alert("Profile saved ✔");
+};
+
+/* ---------- varshaphal ---------- */
+$("#btn-varshaphal").onclick = async () => {
+  const f = new FormData($("#kundli-form"));
+  const year = +$("#vf-year").value || new Date().getFullYear();
+  if (!f.get("date") || !f.get("place")) return alert("Fill the birth details first.");
+  try {
+    const d = await api("/api/varshaphal", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({year, birth: {name: f.get("name"),
+        date: f.get("date"), time: f.get("time"), place: f.get("place")}}),
+    });
+    const target = $("#kundli-result");
+    const box = document.createElement("div");
+    box.innerHTML = `<h2 class="sec">🎂 Varshaphal ${d.year} — Year Chart</h2>
+      <div class="card">
+        ${chartSVG(d.chart, "east")}
+        <p style="text-align:center">
+          <span class="badge">Solar return: ${d.solar_return}</span>
+          <span class="badge">Varsha lagna: ${signName(d.varsha_lagna)}</span>
+          <span class="badge">Year lord: ${plName(d.year_lord)}</span></p>
+        ${d.notes.map(n => `<p>✦ ${n}</p>`).join("")}
+      </div>`;
+    target.prepend(box);
+    box.scrollIntoView({behavior: "smooth"});
+  } catch (ex) { alert("Varshaphal failed: " + ex.message); }
+};
 
 $("#btn-pdf").onclick = async () => {
   const f = new FormData($("#kundli-form"));
@@ -561,6 +675,69 @@ $("#daymuhurta-form").onsubmit = async e => {
   } catch (ex) { err($("#daymuhurta-result"), ex.message); }
 };
 
+/* ---------- FESTIVALS ---------- */
+$("#festivals-form").onsubmit = async e => {
+  e.preventDefault();
+  const f = new FormData(e.target);
+  try {
+    const d = await api(`/api/festivals?year=${f.get("year")}&place=${encodeURIComponent(f.get("place"))}&ekadashi=${f.get("ekadashi") ? "true" : "false"}`);
+    const months = {};
+    d.festivals.forEach(x => {
+      const m = x.date.slice(0, 7);
+      (months[m] = months[m] || []).push(x);
+    });
+    const monthName = m => new Date(m + "-02").toLocaleString("en", {month: "long"});
+    $("#festivals-result").innerHTML =
+      `<h2 class="sec">Odia Parba Panji ${d.year} — ${d.place}</h2>` +
+      Object.entries(months).map(([m, list]) => `
+        <div class="card"><h3 style="margin:.2rem 0;color:var(--maroon)">${monthName(m)} ${m.slice(0, 4)}</h3>
+        ${list.map(x => `<p><b>${x.date.slice(8)} ${monthName(m).slice(0, 3)}</b> —
+          <span class="badge ${x.type === "ekadashi" ? "" : "green"}">${x.name}</span>
+          <span class="hint">${x.note}</span></p>`).join("")}</div>`).join("");
+    $("#festivals-result").scrollIntoView({behavior: "smooth"});
+  } catch (ex) { err($("#festivals-result"), ex.message); }
+};
+
+/* ---------- CHAT ASTROLOGER ---------- */
+let CHAT_HISTORY = [];
+function chatBubble(role, text) {
+  const div = document.createElement("div");
+  div.style.cssText = `margin:.4rem 0;padding:.6rem .8rem;border-radius:10px;white-space:pre-wrap;max-width:85%;` +
+    (role === "user"
+      ? "background:#f7ead0;margin-left:auto;text-align:right"
+      : "background:#fff;border:1px solid var(--line)");
+  div.textContent = text;
+  $("#chat-messages").appendChild(div);
+  $("#chat-messages").scrollTop = 1e9;
+}
+
+$("#btn-chat").onclick = async () => {
+  const q = $("#chat-input").value.trim();
+  if (!q) return;
+  const f = new FormData($("#chat-birth"));
+  if (!f.get("date") || !f.get("place"))
+    return alert("Fill the birth details (DOB + place) first.");
+  chatBubble("user", q);
+  $("#chat-input").value = "";
+  try {
+    const d = await api("/api/chat", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        question: q, history: CHAT_HISTORY, language: LANG,
+        birth: {name: f.get("name"), date: f.get("date"),
+                time: f.get("time"), place: f.get("place")},
+      }),
+    });
+    chatBubble("assistant", d.answer);
+    CHAT_HISTORY.push({role: "user", text: q},
+                      {role: "assistant", text: d.answer});
+    CHAT_HISTORY = CHAT_HISTORY.slice(-10);
+  } catch (ex) { chatBubble("assistant", "⚠ " + ex.message); }
+};
+$("#chat-input").addEventListener("keydown", e => {
+  if (e.key === "Enter") { e.preventDefault(); $("#btn-chat").click(); }
+});
+
 /* ---------- NAMES ---------- */
 $("#names-form").onsubmit = async e => {
   e.preventDefault();
@@ -685,6 +862,8 @@ $("#btn-palm-guided").onclick = async () => {
 const today = new Date().toISOString().slice(0, 10);
 const pd = $('#panchanga-form input[name="date"]'); if (pd) pd.value = today;
 const dm = $('#daymuhurta-form input[name="date"]'); if (dm) dm.value = today;
+const fy = $('#festivals-form input[name="year"]'); if (fy) fy.value = new Date().getFullYear();
+const vy = $("#vf-year"); if (vy) vy.value = new Date().getFullYear();
 
 /* ---------- PWA ---------- */
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");

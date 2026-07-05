@@ -96,6 +96,128 @@ def compute_ascendant(jd_ut: float, lat: float, lon: float) -> float:
     return ascmc[0] % 360.0
 
 
+def rise_set(date: datetime, tz: float, lat: float, lon: float) -> tuple[datetime, datetime]:
+    """Local sunrise & sunset via Swiss Ephemeris (Moshier, offline)."""
+    midnight = date.replace(hour=0, minute=0, second=0, microsecond=0)
+    jd0 = julian_day_utc(midnight, tz)
+    geopos = (lon, lat, 0.0)
+    out = []
+    for rsmi in (swe.CALC_RISE, swe.CALC_SET):
+        res = swe.rise_trans(jd0, swe.SUN, rsmi | swe.BIT_DISC_CENTER,
+                             geopos, 0.0, 0.0, swe.FLG_MOSEPH)
+        jd_evt = res[1][0]
+        y, m, d, h = swe.revjul(jd_evt)
+        out.append(datetime(y, m, d) + timedelta(hours=h + tz))
+    return out[0], out[1]
+
+
+def next_crossing(fn, target_deg: float, jd0: float,
+                  max_days: float = 4.0) -> float | None:
+    """First JD after jd0 where fn(jd) crosses target_deg (increasing)."""
+    def d(jd: float) -> float:
+        return ((fn(jd) - target_deg + 180.0) % 360.0) - 180.0
+    step = 2.0 / 24.0
+    jd = jd0
+    if d(jd) >= 0:
+        jd += step  # already past — look for the next cycle
+    n = int(max_days / step) + 1
+    for _ in range(n):
+        jd2 = jd + step
+        if d(jd) < 0 <= d(jd2):
+            lo, hi = jd, jd2
+            for _ in range(28):
+                mid = (lo + hi) / 2
+                if d(mid) >= 0:
+                    hi = mid
+                else:
+                    lo = mid
+            return hi
+        jd = jd2
+    return None
+
+
+def jd_to_local(jd: float, tz: float) -> datetime:
+    y, m, d, h = swe.revjul(jd)
+    return datetime(y, m, d) + timedelta(hours=h + tz)
+
+
+# ---- divisional charts -------------------------------------------------
+def hora_sign(lon: float) -> int:
+    """D2: odd signs 1st half -> Leo, 2nd -> Cancer; even signs reversed."""
+    sign, first = int(lon // 30), (lon % 30) < 15
+    odd = sign % 2 == 0            # Aries(0) is the 1st (odd) sign
+    return 4 if (odd == first) else 3
+
+
+def saptamsa_sign(lon: float) -> int:
+    """D7: odd signs count from the sign itself, even from its 7th."""
+    sign = int(lon // 30)
+    part = int((lon % 30) / (30.0 / 7.0))
+    start = sign if sign % 2 == 0 else (sign + 6) % 12
+    return (start + part) % 12
+
+
+def dasamsa_sign(lon: float) -> int:
+    """D10: odd signs count from the sign itself, even from its 9th."""
+    sign = int(lon // 30)
+    part = int((lon % 30) / 3.0)
+    start = sign if sign % 2 == 0 else (sign + 8) % 12
+    return (start + part) % 12
+
+
+# ---- simplified planetary strength (shadbala-inspired, 0-100) ----------
+_FRIENDS = {
+    "Sun": ["Moon", "Mars", "Jupiter"], "Moon": ["Sun", "Mercury"],
+    "Mars": ["Sun", "Moon", "Jupiter"], "Mercury": ["Sun", "Venus"],
+    "Jupiter": ["Sun", "Moon", "Mars"], "Venus": ["Mercury", "Saturn"],
+    "Saturn": ["Mercury", "Venus"],
+}
+_ENEMIES = {
+    "Sun": ["Venus", "Saturn"], "Moon": [], "Mars": ["Mercury"],
+    "Mercury": ["Moon"], "Jupiter": ["Mercury", "Venus"],
+    "Venus": ["Sun", "Moon"], "Saturn": ["Sun", "Moon", "Mars"],
+}
+_NAISARGIKA = {"Sun": 10.0, "Moon": 8.6, "Venus": 7.1, "Jupiter": 5.7,
+               "Mercury": 4.3, "Mars": 2.9, "Saturn": 1.4}
+_DIG_HOUSE = {"Sun": 10, "Mars": 10, "Jupiter": 1, "Mercury": 1,
+              "Moon": 4, "Venus": 4, "Saturn": 7}
+_POS_PTS = {1: 15, 4: 15, 7: 15, 10: 15, 5: 12, 9: 12,
+            2: 8, 11: 8, 3: 6, 6: 6, 8: 3, 12: 3}
+
+
+def strength_score(name: str, sign: int, house: int, dignity_: str,
+                   retro: bool, nav_sign: int) -> dict | None:
+    if name in ("Rahu", "Ketu"):
+        return None
+    if dignity_ == "exalted":
+        pts = 30.0
+    elif dignity_ == "own sign":
+        pts = 25.0
+    elif dignity_ == "debilitated":
+        pts = 0.0
+    else:
+        lord = SIGN_LORDS[sign]
+        if lord in _FRIENDS.get(name, []):
+            pts = 15.0
+        elif lord in _ENEMIES.get(name, []):
+            pts = 5.0
+        else:
+            pts = 10.0
+    dig = _DIG_HOUSE[name]
+    if house == dig:
+        pts += 15
+    elif abs(house - dig) in (1, 11):
+        pts += 7
+    pts += _POS_PTS[house]
+    pts += 10 if (retro and name not in ("Sun", "Moon")) else 5
+    pts += _NAISARGIKA[name]
+    if sign == nav_sign:
+        pts += 10   # vargottama
+    pct = min(100, round(pts / 90.0 * 100))
+    label = "strong" if pct >= 65 else "moderate" if pct >= 42 else "weak"
+    return {"percent": pct, "label": label}
+
+
 def compute_chart(dt_local: datetime, tz_offset: float, lat: float, lon: float) -> dict:
     jd = julian_day_utc(dt_local, tz_offset)
     asc = compute_ascendant(jd, lat, lon)
@@ -108,6 +230,9 @@ def compute_chart(dt_local: datetime, tz_offset: float, lat: float, lon: float) 
         p = positions[name]
         plon = p["longitude"]
         sign = int(plon // 30)
+        retro = p["retrograde"] and name not in ("Sun", "Moon")
+        dig = dignity(name, sign)
+        nav = navamsa_sign(plon)
         planets.append({
             "name": name,
             "longitude": round(plon, 4),
@@ -117,10 +242,17 @@ def compute_chart(dt_local: datetime, tz_offset: float, lat: float, lon: float) 
             # Whole-sign house counted from the lagna
             "house": (sign - asc_sign) % 12 + 1,
             "nakshatra": nakshatra_of(plon),
-            "retrograde": p["retrograde"] and name not in ("Sun", "Moon"),
-            "dignity": dignity(name, sign),
-            "navamsa_sign": navamsa_sign(plon),
-            "navamsa_sign_name": SIGNS[navamsa_sign(plon)],
+            "retrograde": retro,
+            "dignity": dig,
+            "navamsa_sign": nav,
+            "navamsa_sign_name": SIGNS[nav],
+            "d2_sign_name": SIGNS[hora_sign(plon)],
+            "d7_sign_name": SIGNS[saptamsa_sign(plon)],
+            "d10_sign_name": SIGNS[dasamsa_sign(plon)],
+            "vargottama": sign == nav,
+            "strength": strength_score(name, sign,
+                                       (sign - asc_sign) % 12 + 1,
+                                       dig, retro, nav),
         })
 
     moon = next(p for p in planets if p["name"] == "Moon")

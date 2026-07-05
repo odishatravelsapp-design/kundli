@@ -17,7 +17,8 @@ from datetime import datetime, timedelta
 
 import swisseph as swe
 
-from .astro import NAK_SPAN, NAKSHATRAS, compute_positions, julian_day_utc
+from .astro import (NAK_SPAN, NAKSHATRAS, compute_positions, julian_day_utc,
+                    rise_set)
 from .panchanga import VAARA, YOGA_NAMES, karana_name, TITHI_NAMES
 
 # nakshatra index sets per activity (classical muhurta elections)
@@ -109,21 +110,7 @@ DAY_LORD = {0: "Sun", 1: "Moon", 2: "Mars", 3: "Mercury", 4: "Jupiter",
             5: "Venus", 6: "Saturn"}
 
 
-def _rise_set(date: datetime, tz: float, lat: float, lon: float) -> tuple[datetime, datetime]:
-    """Local sunrise & sunset via Swiss Ephemeris (Moshier, offline)."""
-    midnight = date.replace(hour=0, minute=0, second=0, microsecond=0)
-    jd0 = julian_day_utc(midnight, tz)
-    geopos = (lon, lat, 0.0)
-    out = []
-    for rsmi in (swe.CALC_RISE, swe.CALC_SET):
-        res = swe.rise_trans(jd0, swe.SUN, rsmi | swe.BIT_DISC_CENTER,
-                             geopos, 0.0, 0.0, swe.FLG_MOSEPH)
-        jd_evt = res[1][0]
-        # JD(UT) -> local datetime
-        y, m, d, h = swe.revjul(jd_evt)
-        dt_utc = datetime(y, m, d) + timedelta(hours=h)
-        out.append(dt_utc + timedelta(hours=tz))
-    return out[0], out[1]
+_rise_set = rise_set
 
 
 def _fmt(dt: datetime) -> str:

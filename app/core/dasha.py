@@ -21,30 +21,44 @@ def vimshottari(moon_longitude: float, birth_dt: datetime,
 
     balance_years = start_years * (1.0 - frac_elapsed)
     periods = []
-    cursor = birth_dt
     now = datetime.now()
 
-    # First (partial) mahadasha, then full cycle up to 120 years of life.
+    # The opening mahadasha began before birth (elapsed portion of the
+    # nakshatra) — antardashas are computed over the FULL span from that
+    # notional start, then clipped at birth (classical method).
+    md_full_start = birth_dt - timedelta(
+        days=start_years * frac_elapsed * YEAR_DAYS)
     idx = start_lord_idx
-    years = balance_years
     total = 0.0
+    first = True
     while total < 120.0:
         lord, full_years = DASHA_SEQUENCE[idx % 9]
-        span = years if len(periods) == 0 else float(full_years)
-        end = cursor + timedelta(days=span * YEAR_DAYS)
+        end = md_full_start + timedelta(days=full_years * YEAR_DAYS)
+        start_visible = birth_dt if first else md_full_start
+        span = (end - start_visible).days / YEAR_DAYS
         period = {
             "lord": lord,
-            "start": cursor.strftime("%Y-%m-%d"),
+            "start": start_visible.strftime("%Y-%m-%d"),
             "end": end.strftime("%Y-%m-%d"),
             "years": round(span, 2),
-            "current": cursor <= now < end,
+            "current": start_visible <= now < end,
         }
-        period["antardashas"] = _antardashas(lord, cursor, span, now)
+        ads = _antardashas(lord, md_full_start, float(full_years), now)
+        if first:
+            kept = []
+            for a in ads:
+                if a["end"] <= birth_dt.strftime("%Y-%m-%d"):
+                    continue                      # finished before birth
+                if a["start"] < birth_dt.strftime("%Y-%m-%d"):
+                    a["start"] = birth_dt.strftime("%Y-%m-%d")
+                kept.append(a)
+            ads = kept
+        period["antardashas"] = ads
         periods.append(period)
         total += span
-        cursor = end
+        md_full_start = end
         idx += 1
-        years = 0.0
+        first = False
 
     current = next((p for p in periods if p["current"]), None)
     return {
@@ -60,8 +74,6 @@ def vimshottari(moon_longitude: float, birth_dt: datetime,
 
 def _antardashas(md_lord: str, md_start: datetime, md_span_years: float,
                  now: datetime) -> list:
-    # For a partial first mahadasha this is an approximation (antardasha
-    # sequence is taken proportionally over the remaining span).
     start_idx = next(i for i, (l, _) in enumerate(DASHA_SEQUENCE)
                      if l == md_lord)
     out = []

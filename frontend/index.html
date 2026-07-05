@@ -7,7 +7,7 @@
 <title>Jyotisha Odisha — Kundli, Panchanga, Match, Palm</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="style.css?v=4">
+<link rel="stylesheet" href="style.css?v=5">
 <script>
 /* one-time cleanup of the old (v1) sticky service worker + caches */
 (function () {
@@ -47,12 +47,19 @@
   <button data-tab="daymuhurta">Muhurta</button>
   <button data-tab="names">Baby Names</button>
   <button data-tab="palm">Palm Reading</button>
+  <button data-tab="chat">Ask Astrologer</button>
 </nav>
 
 <main>
 <!-- ==================== KUNDLI ==================== -->
 <section id="tab-kundli" class="tab active">
   <form id="kundli-form" class="card form-grid">
+    <label class="wide">Saved profile
+      <div style="display:flex;gap:.5rem">
+        <select id="profile-picker" style="flex:1"><option value="">— pick a saved profile —</option></select>
+        <button type="button" id="btn-save-profile" class="ghost">💾 Save current</button>
+      </div>
+    </label>
     <label>Name <input name="name" placeholder="Full name"></label>
     <label>Gender
       <select name="gender"><option value="any">Any</option>
@@ -75,6 +82,10 @@
       <button type="submit" class="primary">Generate Kundli ✦</button>
       <button type="button" id="btn-pdf" class="ghost">Download PDF 📄</button>
       <button type="button" id="btn-ai" class="ghost" title="Needs an LLM key in .env">AI Narrative</button>
+      <span style="display:inline-flex;gap:.3rem;align-items:center">
+        <input type="number" id="vf-year" min="1900" max="2100" style="width:6rem" placeholder="Year">
+        <button type="button" id="btn-varshaphal" class="ghost">Varshaphal 🎂</button>
+      </span>
     </div>
   </form>
   <div id="kundli-result"></div>
@@ -131,6 +142,17 @@
     <div class="actions wide"><button class="primary">Show Panchanga ✦</button></div>
   </form>
   <div id="panchanga-result"></div>
+
+  <form id="festivals-form" class="card form-grid">
+    <h3 class="wide" style="margin:.2rem 0">🎉 Odia Festival Calendar (Parba Panji)</h3>
+    <label>Year <input type="number" name="year" min="1950" max="2100" required></label>
+    <label>Place <input name="place" list="places" value="Bhubaneswar" autocomplete="off"></label>
+    <label style="flex-direction:row;align-items:center;gap:.5rem;margin-top:1.4rem">
+      <input type="checkbox" name="ekadashi" style="width:auto"> include Ekadashi fasting days
+    </label>
+    <div class="actions wide"><button class="primary">Show Festivals ✦</button></div>
+  </form>
+  <div id="festivals-result"></div>
 </section>
 
 <!-- ==================== DAY MUHURTA ==================== -->
@@ -208,6 +230,27 @@
   </details>
   <div id="palm-result"></div>
 </section>
+
+<!-- ==================== CHAT ASTROLOGER ==================== -->
+<section id="tab-chat" class="tab">
+  <p class="hint card">Ask anything about a chart — career, marriage, timing, remedies. Answers are grounded
+    in the actual computed kundli. Fill the birth details below once, then chat.
+    (Best with an AI key in .env; without one, you get the computed facts + matching classical passages.)</p>
+  <form id="chat-birth" class="card form-grid">
+    <label>Name <input name="name" placeholder="optional"></label>
+    <label>DOB <input type="date" name="date" required></label>
+    <label>Time <input type="time" name="time" value="06:00" required></label>
+    <label>Place <input name="place" list="places" required autocomplete="off"></label>
+  </form>
+  <div class="card">
+    <div id="chat-messages" style="max-height:420px;overflow-y:auto"></div>
+    <div class="actions" style="margin-top:.6rem">
+      <input id="chat-input" placeholder="e.g. When will my career improve? Which gemstone suits me?"
+             style="flex:1;min-width:200px">
+      <button id="btn-chat" class="primary">Ask ✦</button>
+    </div>
+  </div>
+</section>
 </main>
 
 <footer>
@@ -216,6 +259,6 @@
 </footer>
 
 <div id="loader" hidden style="display:none"><div class="spin"></div><p>Consulting the grahas…</p></div>
-<script src="app.js?v=4"></script>
+<script src="app.js?v=5"></script>
 </body>
 </html>

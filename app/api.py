@@ -8,8 +8,9 @@ from fastapi import APIRouter, HTTPException, Query
 
 from fastapi.responses import Response
 
-from .core import (daymuhurta, gochar as gochar_mod,
-                   muhurta as muhurta_mod, naming, yogas as yogas_mod)
+from .core import (daymuhurta, festivals as festivals_mod,
+                   gochar as gochar_mod, muhurta as muhurta_mod, naming,
+                   varshaphal as varshaphal_mod, yogas as yogas_mod)
 from .core.astro import SIGN_LORDS, SIGNS, compute_chart
 from .core.matching import (GANA, NADI, NAK_GANA, NAK_NADI_PATTERN, NAK_YONI,
                             SIGN_VARNA, VARNA_ORDER, YONI_ANIMALS)
@@ -17,9 +18,11 @@ from .services.suggestions import build_suggestions, career_analysis
 from .core.dasha import vimshottari
 from .core.matching import ashtakoota, mangal_dosha
 from .core.panchanga import compute_panchanga
-from .schemas import (BirthDetails, DayMuhurtaRequest, MatchRequest,
-                      MuhurtaRequest, PalmGuidedRequest, PalmImageRequest)
-from .services import geo, interpret, palm, timeline
+from .schemas import (BirthDetails, ChatRequest, DayMuhurtaRequest,
+                      MatchRequest, MuhurtaRequest, PalmGuidedRequest,
+                      PalmImageRequest, ProfileIn, VarshaphalRequest)
+from .services import geo, interpret, palm, retrieval, store, timeline
+from .services import llm as llm_svc
 from .services.llm import provider_status
 
 router = APIRouter(prefix="/api")
@@ -112,7 +115,7 @@ def _full_kundli(b: BirthDetails) -> dict:
     dt = _parse_dt(b)
     lat, lon, tz, place_label = _resolve_location(b, dt)
     chart = compute_chart(dt, tz, lat, lon)
-    pancha = compute_panchanga(dt, tz)
+    pancha = compute_panchanga(dt, tz, lat, lon)
     dashas = vimshottari(
         next(p for p in chart["planets"] if p["name"] == "Moon")["longitude"],
         dt)
@@ -291,7 +294,7 @@ def panchanga(date: str, time: str = "06:00", place: str = "Bhubaneswar"):
     b = BirthDetails(date=date, time=time, place=place)
     dt = _parse_dt(b)
     lat, lon, tz, label = _resolve_location(b, dt)
-    pancha = compute_panchanga(dt, tz)
+    pancha = compute_panchanga(dt, tz, lat, lon)
     windows = daymuhurta.day_windows(dt, tz, lat, lon)
     moon_sign = int(pancha["moon_longitude"] // 30)
     return {"place": label,
@@ -315,6 +318,96 @@ def names(b: BirthDetails):
         "nakshatra_info": NAK_INFO.get(nk["name"]),
         "suggestions": naming.suggest_names(nk["index"], nk["pada"], b.gender),
     }
+
+
+@router.get("/festivals")
+def festivals(year: int, place: str = "Bhubaneswar",
+              ekadashi: bool = False):
+    hit = geo.resolve(place)
+    if not hit:
+        raise HTTPException(400, f"Place '{place}' not found.")
+    tz = geo.tz_offset_for(hit["tzname"], datetime(year, 6, 1))
+    fests = festivals_mod.year_festivals(year, tz, hit["lat"], hit["lon"],
+                                         include_ekadashi=ekadashi)
+    return {"year": year, "place": f"{hit['city']}, {hit['state']}",
+            "festivals": fests}
+
+
+@router.post("/varshaphal")
+def varshaphal(req: VarshaphalRequest):
+    dt = _parse_dt(req.birth)
+    lat, lon, tz, _ = _resolve_location(req.birth, dt)
+    natal = compute_chart(dt, tz, lat, lon)
+    sun_lon = next(p for p in natal["planets"]
+                   if p["name"] == "Sun")["longitude"]
+    try:
+        return varshaphal_mod.varshaphal(sun_lon, dt, req.year, tz, lat, lon)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+# ---- saved profiles ----
+@router.get("/profiles")
+def profiles():
+    return store.list_profiles()
+
+
+@router.post("/profiles")
+def save_profile(p: ProfileIn):
+    if not p.name.strip():
+        raise HTTPException(400, "Profile needs a name.")
+    return store.save_profile(p.name.strip(), p.gender, p.date, p.time,
+                              p.place)
+
+
+@router.delete("/profiles/{pid}")
+def delete_profile(pid: int):
+    if not store.delete_profile(pid):
+        raise HTTPException(404, "Profile not found.")
+    return {"deleted": pid}
+
+
+# ---- chat astrologer ----
+@router.post("/chat")
+async def chat(req: ChatRequest):
+    data = _full_kundli(req.birth)
+    c = data["chart"]
+    facts = (
+        f"Native: {req.birth.name or 'the native'}; lagna "
+        f"{c['ascendant']['sign_name']}; rashi {c['moon_sign_name']}; "
+        f"janma nakshatra {c['moon_nakshatra']['name']} pada "
+        f"{c['moon_nakshatra']['pada']}. Placements: "
+        + "; ".join(f"{p['name']} in {p['sign_name']} (house {p['house']}, "
+                    f"{p['dignity']})" for p in c["planets"])
+        + f". Current dasha: {data['dasha']['current_mahadasha']} MD / "
+          f"{data['dasha']['current_antardasha']} AD. Yogas: "
+        + (", ".join(y["name"] for y in data["yogas"]) or "none")
+        + f". Manglik: {data['mangal_dosha']['manglik']}. Sade Sati: "
+          f"{data['gochar']['sade_sati']['type']}.")
+    passages = retrieval.retrieve(req.question + " " + facts, k=5)
+
+    convo = "\n".join(f"{'Q' if h.get('role') == 'user' else 'A'}: {h.get('text','')}"
+                      for h in req.history[-6:])
+    lang = "Answer in Odia (ଓଡ଼ିଆ)." if req.language == "or" else "Answer in English."
+    prompt = (
+        f"Chart facts (ground truth, already computed):\n{facts}\n\n"
+        f"Classical passages that may help:\n"
+        + "\n".join("- " + p["text"] for p in passages)
+        + (f"\n\nConversation so far:\n{convo}" if convo else "")
+        + f"\n\nQuestion: {req.question}\n\nAnswer specifically from THIS "
+          "chart in under 200 words. Be warm, concrete and non-fatalistic; "
+          "suggest a simple remedy when relevant.")
+    system = ("You are an experienced, kind Vedic astrologer from Odisha. "
+              "Never predict death or disaster. " + lang)
+    answer = await llm_svc.generate(prompt, system=system)
+    if answer is None:
+        return {"ai": False,
+                "answer": ("(No AI key configured — showing the computed "
+                           "facts and matching classical passages.)\n\n"
+                           + facts + "\n\n"
+                           + "\n".join("📜 " + p["text"] for p in passages)),
+                }
+    return {"ai": True, "answer": answer}
 
 
 @router.get("/palm/questions")

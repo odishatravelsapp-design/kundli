@@ -7,6 +7,9 @@ __pycache__/
 .venv/
 venv/
 
+# user data (saved profiles db)
+userdata/
+
 # misc
 *.pdf
 .DS_Store
