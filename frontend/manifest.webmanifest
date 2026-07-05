@@ -1,0 +1,12 @@
+{
+  "name": "Jyotisha Odisha — Kundli & Panchanga",
+  "short_name": "Jyotisha",
+  "description": "Free offline Vedic astrology: kundli, Odia panchanga, guna milan, baby names, palm reading.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fdf6e9",
+  "theme_color": "#7a1f1f",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

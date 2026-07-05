@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#7a1f1f">
+<title>Jyotisha Odisha — Kundli, Panchanga, Match, Palm</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css?v=4">
+<script>
+/* one-time cleanup of the old (v1) sticky service worker + caches */
+(function () {
+  if (localStorage.getItem("swCleaned") === "3") return;
+  var work = [];
+  if ("serviceWorker" in navigator)
+    work.push(navigator.serviceWorker.getRegistrations()
+      .then(rs => Promise.all(rs.map(r => r.unregister()))));
+  if (window.caches)
+    work.push(caches.keys().then(ks => Promise.all(ks.map(k => caches.delete(k)))));
+  Promise.all(work).then(function () {
+    localStorage.setItem("swCleaned", "3");
+    if (work.length) location.reload();
+  });
+})();
+</script>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <span class="chakra">☸</span>
+    <div>
+      <h1>Jyotisha Odisha</h1>
+      <p>କୁଣ୍ଡଳୀ · ପଞ୍ଚାଙ୍ଗ · Kundli · Panchanga · Matching · Palmistry</p>
+    </div>
+  </div>
+  <div class="lang-toggle">
+    <button data-lang="en" class="active">EN</button>
+    <button data-lang="or">ଓଡ଼ିଆ</button>
+  </div>
+</header>
+
+<nav id="tabs">
+  <button data-tab="kundli" class="active">Kundli</button>
+  <button data-tab="match">Match Making</button>
+  <button data-tab="panchanga">Panchanga</button>
+  <button data-tab="daymuhurta">Muhurta</button>
+  <button data-tab="names">Baby Names</button>
+  <button data-tab="palm">Palm Reading</button>
+</nav>
+
+<main>
+<!-- ==================== KUNDLI ==================== -->
+<section id="tab-kundli" class="tab active">
+  <form id="kundli-form" class="card form-grid">
+    <label>Name <input name="name" placeholder="Full name"></label>
+    <label>Gender
+      <select name="gender"><option value="any">Any</option>
+        <option value="male">Male</option><option value="female">Female</option></select>
+    </label>
+    <label>Date of Birth <input type="date" name="date" required></label>
+    <label>Time of Birth <input type="time" name="time" value="06:00" required></label>
+    <label class="wide">Place of Birth
+      <input name="place" list="places" placeholder="Start typing… e.g. Bhubaneswar" required autocomplete="off">
+      <datalist id="places"></datalist>
+    </label>
+    <label>Chart Style
+      <select name="style">
+        <option value="east">East Indian (Odisha)</option>
+        <option value="north">North Indian</option>
+        <option value="south">South Indian</option>
+      </select>
+    </label>
+    <div class="wide actions">
+      <button type="submit" class="primary">Generate Kundli ✦</button>
+      <button type="button" id="btn-pdf" class="ghost">Download PDF 📄</button>
+      <button type="button" id="btn-ai" class="ghost" title="Needs an LLM key in .env">AI Narrative</button>
+    </div>
+  </form>
+  <div id="kundli-result"></div>
+</section>
+
+<!-- ==================== MATCH ==================== -->
+<section id="tab-match" class="tab">
+  <form id="match-form">
+    <div class="two-col">
+      <fieldset class="card"><legend>Boy ♂</legend>
+        <label>Name <input name="b_name"></label>
+        <label>DOB <input type="date" name="b_date" required></label>
+        <label>Time <input type="time" name="b_time" value="06:00" required></label>
+        <label>Place <input name="b_place" list="places" required autocomplete="off"></label>
+      </fieldset>
+      <fieldset class="card"><legend>Girl ♀</legend>
+        <label>Name <input name="g_name"></label>
+        <label>DOB <input type="date" name="g_date" required></label>
+        <label>Time <input type="time" name="g_time" value="06:00" required></label>
+        <label>Place <input name="g_place" list="places" required autocomplete="off"></label>
+      </fieldset>
+    </div>
+    <div class="actions"><button class="primary">Check 36 Guna Milan ✦</button></div>
+  </form>
+  <div id="match-result"></div>
+
+  <form id="muhurta-form" class="card form-grid">
+    <h3 class="wide" style="margin:.2rem 0">💒 Best Marriage Date &amp; Lagna</h3>
+    <label>Search from <input type="date" name="from_date"></label>
+    <label>Months to search
+      <select name="months"><option>3</option><option selected>6</option>
+        <option>9</option><option>12</option></select>
+    </label>
+    <label>Wedding venue <input name="venue" list="places" placeholder="defaults to girl's place" autocomplete="off"></label>
+    <div class="actions wide">
+      <button class="primary">Find Auspicious Dates ✦</button>
+      <span class="hint">Uses the boy &amp; girl details entered above</span>
+    </div>
+  </form>
+  <div id="muhurta-result"></div>
+</section>
+
+<!-- ==================== PANCHANGA ==================== -->
+<section id="tab-panchanga" class="tab">
+  <p class="hint card"><b>What is Panchanga for?</b> It is the Hindu almanac for any day —
+    use it to pick <b>good days &amp; times</b>: tithi decides festivals and fasting (Ekadashi,
+    Purnima), the day's nakshatra decides muhurta suitability, and Rahu Kala / Yamaganda are the
+    hours to <b>avoid</b> starting anything important. Abhijit (around noon) is the all-purpose safe window.
+    Odisha extras: the Odia solar masa and Sankranti festivals are shown too.</p>
+  <form id="panchanga-form" class="card form-grid">
+    <label>Date <input type="date" name="date" required></label>
+    <label>Time <input type="time" name="time" value="06:00"></label>
+    <label>Place <input name="place" list="places" value="Bhubaneswar" autocomplete="off"></label>
+    <div class="actions wide"><button class="primary">Show Panchanga ✦</button></div>
+  </form>
+  <div id="panchanga-result"></div>
+</section>
+
+<!-- ==================== DAY MUHURTA ==================== -->
+<section id="tab-daymuhurta" class="tab">
+  <p class="hint card">Best time for trading, business, travel and other work: day quality,
+    Rahu Kala / Gulika / Yamaganda to avoid, Abhijit muhurta, and planetary horas.
+    Add your birth details for a personalised tara-bala check.</p>
+  <form id="daymuhurta-form" class="card form-grid">
+    <label>Activity
+      <select name="activity">
+        <option value="trading">Trading / Stocks / Investment</option>
+        <option value="business">Start Business / Shop Opening</option>
+        <option value="travel">Travel / Journey</option>
+        <option value="grihapravesh">Griha Pravesh</option>
+        <option value="satyanarayan">Satyanarayan Puja (baby / vrata)</option>
+        <option value="vehicle">Vehicle Purchase / First Drive</option>
+        <option value="general">General Work</option>
+      </select>
+    </label>
+    <label>Date <input type="date" name="date"></label>
+    <label>Place <input name="place" list="places" value="Bhubaneswar" autocomplete="off"></label>
+    <label>Rank next
+      <select name="scan_days"><option value="0">just this day</option>
+        <option value="15">15 days</option><option value="30" selected>30 days</option>
+        <option value="60">60 days</option><option value="90">90 days</option></select>
+    </label>
+    <label>Your DOB (optional) <input type="date" name="b_date"></label>
+    <label>Birth time <input type="time" name="b_time" value="06:00"></label>
+    <label>Birth place <input name="b_place" list="places" autocomplete="off"></label>
+    <div class="actions wide"><button class="primary">Find Muhurta ✦</button></div>
+  </form>
+  <div id="daymuhurta-result"></div>
+</section>
+
+<!-- ==================== NAMES ==================== -->
+<section id="tab-names" class="tab">
+  <p class="hint card">Newborn naming by janma-nakshatra: enter the baby's birth details and get the
+    auspicious starting syllable with Odia name ideas (Namakarana samskara).</p>
+  <form id="names-form" class="card form-grid">
+    <label>Gender
+      <select name="gender"><option value="any">Any</option>
+        <option value="male">Boy</option><option value="female">Girl</option></select>
+    </label>
+    <label>Date of Birth <input type="date" name="date" required></label>
+    <label>Time of Birth <input type="time" name="time" value="06:00" required></label>
+    <label>Place <input name="place" list="places" required autocomplete="off"></label>
+    <div class="actions wide"><button class="primary">Suggest Names ✦</button></div>
+  </form>
+  <div id="names-result"></div>
+</section>
+
+<!-- ==================== PALM ==================== -->
+<section id="tab-palm" class="tab">
+  <p class="hint card">Hasta Samudrika Shastra. Capture your palm with the camera for an AI reading
+    (needs an API key configured on the server), or use the free guided reading below.</p>
+  <div class="card">
+    <h3>📷 Camera Capture</h3>
+    <div id="cam-area">
+      <video id="cam" autoplay playsinline muted></video>
+      <canvas id="cam-canvas" hidden></canvas>
+      <img id="palm-preview" alt="" hidden>
+    </div>
+    <div class="actions">
+      <button id="btn-cam-start" class="ghost">Open Camera</button>
+      <button id="btn-cam-shot" class="primary" hidden>Capture Palm ✋</button>
+      <button id="btn-cam-retake" class="ghost" hidden>Retake</button>
+      <button id="btn-palm-send" class="primary" hidden>Read My Palm ✦</button>
+      <label class="ghost file-btn">Upload Photo<input id="palm-file" type="file" accept="image/*" hidden></label>
+    </div>
+  </div>
+  <details class="card">
+    <summary><b>🖐 Optional: guided reading without a photo</b> (answer questions about your lines)</summary>
+    <div id="palm-questions" style="margin-top:.6rem"></div>
+    <div class="actions"><button id="btn-palm-guided" class="primary">Get Guided Reading ✦</button></div>
+  </details>
+  <div id="palm-result"></div>
+</section>
+</main>
+
+<footer>
+  <p>Runs 100% offline &amp; free — Swiss Ephemeris (Lahiri ayanamsa) · Odia solar panchanga ·
+     For guidance and tradition, not a substitute for professional advice.</p>
+</footer>
+
+<div id="loader" hidden style="display:none"><div class="spin"></div><p>Consulting the grahas…</p></div>
+<script src="app.js?v=4"></script>
+</body>
+</html>

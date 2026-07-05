@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(docker compose up --build -d)",
+      "PowerShell(docker compose up -d)",
+      "PowerShell(node --check \"c:\\\\Users\\\\sahud\\\\OneDrive\\\\Desktop\\\\Dillip\\\\POC\\\\kundli\\\\frontend\\\\app.js\")",
+      "PowerShell(node --check \"c:\\\\Users\\\\sahud\\\\OneDrive\\\\Desktop\\\\Dillip\\\\POC\\\\kundli\\\\frontend\\\\sw.js\")",
+      "PowerShell(\"JS OK\")"
+    ]
+  }
+}

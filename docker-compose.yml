@@ -1,0 +1,26 @@
+services:
+  kundli:
+    build: .
+    container_name: kundli
+    ports:
+      - "8090:8000"
+    env_file:
+      - path: .env
+        required: false
+    restart: unless-stopped
+
+  # OPTIONAL free local LLM (uncomment to enable AI narratives with zero cost;
+  # then set OLLAMA_BASE_URL=http://ollama:11434 in .env and
+  # `docker exec -it ollama ollama pull llama3.1`)
+  #
+  # ollama:
+  #   image: ollama/ollama
+  #   container_name: ollama
+  #   volumes:
+  #     - ollama:/root/.ollama
+  #   ports:
+  #     - "11434:11434"
+  #   restart: unless-stopped
+
+# volumes:
+#   ollama:

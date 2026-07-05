@@ -1,0 +1,42 @@
+{
+  "signs": {
+    "Aries": "ମେଷ", "Taurus": "ବୃଷ", "Gemini": "ମିଥୁନ", "Cancer": "କର୍କଟ",
+    "Leo": "ସିଂହ", "Virgo": "କନ୍ୟା", "Libra": "ତୁଳା", "Scorpio": "ବିଛା",
+    "Sagittarius": "ଧନୁ", "Capricorn": "ମକର", "Aquarius": "କୁମ୍ଭ", "Pisces": "ମୀନ"
+  },
+  "planets": {
+    "Sun": "ରବି", "Moon": "ଚନ୍ଦ୍ର", "Mars": "ମଙ୍ଗଳ", "Mercury": "ବୁଧ",
+    "Jupiter": "ବୃହସ୍ପତି", "Venus": "ଶୁକ୍ର", "Saturn": "ଶନି",
+    "Rahu": "ରାହୁ", "Ketu": "କେତୁ"
+  },
+  "nakshatras": {
+    "Ashwini": "ଅଶ୍ୱିନୀ", "Bharani": "ଭରଣୀ", "Krittika": "କୃତ୍ତିକା",
+    "Rohini": "ରୋହିଣୀ", "Mrigashira": "ମୃଗଶିରା", "Ardra": "ଆର୍ଦ୍ରା",
+    "Punarvasu": "ପୁନର୍ବସୁ", "Pushya": "ପୁଷ୍ୟା", "Ashlesha": "ଆଶ୍ଳେଷା",
+    "Magha": "ମଘା", "Purva Phalguni": "ପୂର୍ବା ଫାଲ୍ଗୁନୀ",
+    "Uttara Phalguni": "ଉତ୍ତରା ଫାଲ୍ଗୁନୀ", "Hasta": "ହସ୍ତା",
+    "Chitra": "ଚିତ୍ରା", "Swati": "ସ୍ୱାତୀ", "Vishakha": "ବିଶାଖା",
+    "Anuradha": "ଅନୁରାଧା", "Jyeshtha": "ଜ୍ୟେଷ୍ଠା", "Mula": "ମୂଳା",
+    "Purva Ashadha": "ପୂର୍ବାଷାଢ଼ା", "Uttara Ashadha": "ଉତ୍ତରାଷାଢ଼ା",
+    "Shravana": "ଶ୍ରବଣା", "Dhanishta": "ଧନିଷ୍ଠା", "Shatabhisha": "ଶତଭିଷା",
+    "Purva Bhadrapada": "ପୂର୍ବ ଭାଦ୍ରପଦ", "Uttara Bhadrapada": "ଉତ୍ତର ଭାଦ୍ରପଦ",
+    "Revati": "ରେବତୀ"
+  },
+  "masa": {
+    "Baisakha": "ବୈଶାଖ", "Jyestha": "ଜ୍ୟେଷ୍ଠ", "Asadha": "ଆଷାଢ଼",
+    "Srabana": "ଶ୍ରାବଣ", "Bhadraba": "ଭାଦ୍ରବ", "Aswina": "ଆଶ୍ୱିନ",
+    "Kartika": "କାର୍ତ୍ତିକ", "Margasira": "ମାର୍ଗଶିର", "Pausa": "ପୌଷ",
+    "Magha": "ମାଘ", "Phalguna": "ଫାଲ୍ଗୁନ", "Chaitra": "ଚୈତ୍ର"
+  },
+  "vaara": {
+    "Sunday": "ରବିବାର", "Monday": "ସୋମବାର", "Tuesday": "ମଙ୍ଗଳବାର",
+    "Wednesday": "ବୁଧବାର", "Thursday": "ଗୁରୁବାର", "Friday": "ଶୁକ୍ରବାର",
+    "Saturday": "ଶନିବାର"
+  },
+  "terms": {
+    "Lagna": "ଲଗ୍ନ", "Rashi": "ରାଶି", "Nakshatra": "ନକ୍ଷତ୍ର",
+    "Tithi": "ତିଥି", "Yoga": "ଯୋଗ", "Karana": "କରଣ",
+    "Kundli": "କୁଣ୍ଡଳୀ", "Panchanga": "ପଞ୍ଚାଙ୍ଗ", "Dasha": "ଦଶା",
+    "Paksha": "ପକ୍ଷ", "Shukla": "ଶୁକ୍ଳ", "Krishna": "କୃଷ୍ଣ"
+  }
+}
